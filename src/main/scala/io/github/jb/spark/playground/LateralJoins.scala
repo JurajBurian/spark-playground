@@ -12,19 +12,19 @@ object LateralJoins {
       (1, "Engineering", 100000),
       (2, "Sales", 80000),
       (3, "Marketing", 90000)
-    ).toDF("id", "dept_name", "budget")
+    ).toDF("id", "department", "budget")
   }
 
   def getEmployeeDF(implicit spark: SparkSession): DataFrame = {
     import spark.implicits._
     Seq(
-      (1, "John", "Engineering", 75000),
-      (1, "Jane", "Engineering", 85000),
-      (2, "Mike", "Sales", 60000),
-      (2, "Sarah", "Sales", 65000),
-      (3, "Tom", "Marketing", 70000),
-      (3, "Ann", "Marketing", 64000)
-    ).toDF("dept_id", "name", "department", "salary")
+      (1, "John", 75000),
+      (1, "Jane", 85000),
+      (2, "Mike", 60000),
+      (2, "Sarah", 65000),
+      (3, "Tom", 70000),
+      (3, "Ann", 64000)
+    ).toDF("dept_id", "name", "salary")
   }
 
   def main(args: Array[String]): Unit = {
@@ -41,12 +41,12 @@ object LateralJoins {
       val employees   = getEmployeeDF
 
       val rankedEmployees = employees
-        .withColumn("rank", row_number().over(Window.partitionBy("department").orderBy($"salary".asc)))
+        .withColumn("rank", row_number().over(Window.partitionBy("dept_id").orderBy($"salary".asc)))
         .where($"rank" <= 1)
 
       val result = departments
         .join(rankedEmployees, departments("id") === rankedEmployees("dept_id"))
-        .select("id", "dept_name", "budget", "name", "department", "salary")
+        .select("id", "budget", "name", "department", "salary")
 
       println("Inner join result:")
       result.show()
@@ -54,8 +54,8 @@ object LateralJoins {
 
     {
       // let calculate employees having the smallest salary per department as lateral join
-      val departments = getDepartmentDF.alias("ds")
-      val employees   = getEmployeeDF.alias("es")
+      val departments = getDepartmentDF.alias("ds").repartition(2, $"id")
+      val employees   = getEmployeeDF.alias("es").repartition(2, $"dept_id")
 
       val result = departments
         .lateralJoin(
@@ -64,7 +64,7 @@ object LateralJoins {
             .orderBy($"salary".asc)
             .limit(1)
         )
-        .select("id", "dept_name", "budget", "name", "department", "salary")
+        .select("id", "budget", "name", "department", "salary")
 
       println("Lateral join result:")
       result.show()
@@ -78,15 +78,15 @@ object LateralJoins {
       val result = spark
         .sql(
           """
-          |SELECT ds.id, ds.dept_name, ds.budget, es.name, es.department, es.salary FROM ds,
-          |LATERAL (
+          |SELECT ds.id, ds.budget, es.name, ds.department, es.salary
+          |FROM ds
+          |INNER JOIN LATERAL (
           |  SELECT *
           |  FROM es
           |  WHERE ds.id = es.dept_id
           |  ORDER BY salary ASC
           |  LIMIT 1
-          |) AS es
-          |""".stripMargin
+          |) AS es""".stripMargin
         )
 
       println("Lateral join result as SQL:")
