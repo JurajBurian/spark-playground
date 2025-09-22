@@ -1,6 +1,6 @@
 val v = new {
-  val Scala          = "2.13.16"
-  val Spark          = "4.0.1"
+  val Scala = "2.13.16"
+  val Spark = "4.0.1"
 }
 
 ThisBuild / version      := "0.1.0-SNAPSHOT"
@@ -14,7 +14,7 @@ val coreSparkLibs = Seq(
 )
 val commonLibs = Seq() // <- add extra libs if necessary in the future
 
-lazy val `spark-examples-root` = (project in file("."))
+lazy val `spark-playground-root` = (project in file("."))
   .settings(
     assembly / mainClass := Some("com.jubu.spark.Main"),
     libraryDependencies ++= coreSparkLibs ++ commonLibs ++ Seq(), // <- add extra libs if necessary in the future
@@ -23,4 +23,3 @@ lazy val `spark-examples-root` = (project in file("."))
       .runTask(Test / fullClasspath, Compile / run / mainClass, Compile / run / runner)
       .evaluated
   )
-
